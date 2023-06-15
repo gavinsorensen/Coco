@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CoCo AI</title>
+</head>
+<body>
+    <h1>Your Personal AI Assistant</h1>
+    <input id="api_key" type="text" placeholder="Enter your API key">
+    <button id="record" onclick="startRecording()">Start Recording</button>
+    <button id="stop" onclick="stopRecording()" disabled>Stop Recording</button>
+    <div id="output"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <script src="path/to/your/recording/script.js"></script>
+    <script>
+        var output = document.getElementById('output');
+        var api_key = document.getElementById('api_key').value;
+
+        function startRecording() {
+            // start the recording using the script in script.js
+        }
+
+        function stopRecording() {
+            // stop the recording and get the audio data
+            var user_input = // your recorded audio data
+
+            axios.post('http://your-ec2-ip/api/v1/predict', {
+                api_key: api_key,
+                user_input: user_input
+            })
+            .then(function (response) {
+                output.innerText = "AI output: " + response.data.result;
+            })
+            .catch(function (error) {
+                console.log(error);
+            });
+        }
+    </script>
+</body>
+</html>
