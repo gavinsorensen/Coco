@@ -2,38 +2,192 @@
 <html>
 <head>
     <title>CoCo AI</title>
-</head>
-<body>
-    <h1>Your Personal AI Assistant</h1>
-    <input id="api_key" type="text" placeholder="Enter your API key">
-    <button id="record" onclick="startRecording()">Start Recording</button>
-    <button id="stop" onclick="stopRecording()" disabled>Stop Recording</button>
-    <div id="output"></div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
-    <script src="path/to/your/recording/script.js"></script>
-    <script>
-        var output = document.getElementById('output');
-        var api_key = document.getElementById('api_key').value;
-
-        function startRecording() {
-            // start the recording using the script in script.js
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        /* Add CSS styles here */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
         }
 
-        function stopRecording() {
-            // stop the recording and get the audio data
-            var user_input = // your recorded audio data
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
 
-            axios.post('http://your-ec2-ip/api/v1/predict', {
-                api_key: api_key,
-                user_input: user_input
-            })
-            .then(function (response) {
-                output.innerText = "AI output: " + response.data.result;
-            })
-            .catch(function (error) {
-                console.log(error);
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .recording-icon {
+            width: 50px;
+            height: 50px;
+            background-color: #f44336;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            margin: 20px auto;
+        }
+
+        .recording-icon:hover {
+            background-color: #d32f2f;
+        }
+
+        #stop {
+            display: block;
+            width: 100%;
+            max-width: 200px;
+            margin: 20px auto;
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4caf50;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #stop:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #userInput {
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .loader::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            border-top-color: #333;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #output {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .error-message {
+            color: red;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/recordrtc"></script>
+    <script src="https://unpkg.com/@elevenlabs/sdk"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Your Personal AI Assistant</h1>
+        <div class="recording-icon" onclick="startRecording()">&#9679;</div>
+        <button id="stop" onclick="stopRecording()" disabled>Stop Recording</button>
+        <div id="userInput"></div>
+        <div class="loader" id="loader"></div>
+        <div id="output"></div>
+        <div class="error-message" id="error"></div>
+    </div>
+
+    <script>
+        let recorder, blob;
+        const eleven = new Eleven({
+            apiKey: 'f0cf5f9744549c8a759f2ed6c20f4868'
+        });
+
+        async function startRecording() {
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                recorder = RecordRTC(stream, { type: 'audio' });
+                recorder.startRecording();
+                document.getElementById('stop').disabled = false;
+                document.getElementById('error').innerText = "";
+            } catch (error) {
+                displayError("Error accessing microphone: " + error.message);
+            }
+        }
+
+        async function stopRecording() {
+            document.getElementById('stop').disabled = true;
+            recorder.stopRecording(async function() {
+                blob = recorder.getBlob();
+                let arrayBuffer = await blob.arrayBuffer();
+                let audioBuffer;
+                try {
+                    audioBuffer = await eleven.decodeAudioData(arrayBuffer);
+                    document.getElementById('error').innerText = "";
+                } catch (error) {
+                    displayError("Error decoding audio data: " + error.message);
+                }
+                if (audioBuffer) {
+                    let result;
+                    try {
+                        result = await eleven.transcribe(audioBuffer);
+                        document.getElementById('error').innerText = "";
+                    } catch (error) {
+                        displayError("Error transcribing audio: " + error.message);
+                    }
+                    if (result) {
+                        processTranscript(result.transcript);
+                    }
+                }
             });
+        }
+
+        async function processTranscript(transcript) {
+            document.getElementById('userInput').innerText = "You said: " + transcript;
+            document.getElementById('loader').style.display = 'block';
+
+            try {
+                let response = await axios.post('http://3.237.78.240/api/v1/predict', {
+                    user_input: transcript
+                });
+
+                let assistant_message = response.data.result;
+                let audio = await eleven.synthesize({
+                    text: assistant_message,
+                    voice: 'Bella',
+                    model: 'eleven_monolingual_v1'
+                });
+
+                var audioElement = document.createElement('audio');
+                audioElement.src = URL.createObjectURL(audio);
+                audioElement.play();
+
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('output').innerText = "AI output: " + assistant_message;
+                document.getElementById('error').innerText = "";
+            } catch (error) {
+                displayError("Error processing request: " + error.message);
+            }
+        }
+
+        function displayError(errorMessage) {
+            document.getElementById('error').innerText = errorMessage;
         }
     </script>
 </body>
