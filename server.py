@@ -3,6 +3,10 @@ import requests
 
 app = Flask(__name__)
 
+@app.route("/")
+def index():
+    return "Hello, world!"
+
 @app.route("/api/v1/predict", methods=["POST"])
 def predict():
     data = request.json
