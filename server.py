@@ -7,7 +7,7 @@ app = Flask(__name__)
 def index():
     return "Hello, world!"
 
-@app.route("/api/v1/predict", methods=["POST"])
+@app.route("url = "http://172.31.8.24/api/v1/predict"", methods=["POST"])
 def predict():
     data = request.json
     api_key = data.get('api_key')
